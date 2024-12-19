@@ -108,14 +108,14 @@ print(output_features_normalized)
 
 
 
-if "nn_structure" not in st.session_state:
-    st.session_state.nn_structure = []
-if "nn_linklist" not in st.session_state:
-    st.session_state.nn_linklist=[]
-if "trained_model_layers" not in st.session_state:
-    st.session_state.trained_model_layers=[]
-if "prediction" not in st.session_state:
-    st.session_state.prediction=[]
+if "nn_structure_regression" not in st.session_state:
+    st.session_state.nn_structure_regression = []
+if "nn_linklist_regression" not in st.session_state:
+    st.session_state.nn_linklist_regression=[]
+if "trained_model_layers_regression" not in st.session_state:
+    st.session_state.trained_model_layers_regression=[]
+if "prediction_regression" not in st.session_state:
+    st.session_state.prediction_regression=[]
 
 
 st.title("Neural Network Builder")
@@ -137,14 +137,14 @@ if st.button("Add Layer"):
         if nn.is_empty()==True:
             
             layer=(DenseLayer(len(input_features_normalized[0]),neurons))
-            st.session_state.nn_linklist.append(layer)
+            st.session_state.nn_linklist_regression.append(layer)
             
-            st.session_state.nn_structure.append({"type": "Dense", "neurons": neurons})
+            st.session_state.nn_structure_regression.append({"type": "Dense", "neurons": neurons})
         else:
            
             layer=(DenseLayer(None,neurons))
-            st.session_state.nn_linklist.append(layer)
-            st.session_state.nn_structure.append({"type": "Dense", "neurons": neurons})
+            st.session_state.nn_linklist_regression.append(layer)
+            st.session_state.nn_structure_regression.append({"type": "Dense", "neurons": neurons})
     elif layer_type == "Activation Layer":
         activation_functions={"ReLU":(relu,relu_derivative),"Sigmoid":(sigmoid,sigmoid_derivative)}
         
@@ -153,13 +153,13 @@ if st.button("Add Layer"):
             act_function=activation_data[0]
             act_derivative=activation_data[1]
         layer=(ActivationLayer(act_function,act_derivative))
-        st.session_state.nn_linklist.append(layer)
+        st.session_state.nn_linklist_regression.append(layer)
         
-        st.session_state.nn_structure.append({"type": "Activation", "activation": activation})
+        st.session_state.nn_structure_regression.append({"type": "Activation", "activation": activation})
 
 st.markdown("### Current Neural Network Structure:")
-if st.session_state.nn_structure:
-    for idx, layer in enumerate(st.session_state.nn_structure):
+if st.session_state.nn_structure_regression:
+    for idx, layer in enumerate(st.session_state.nn_structure_regression):
         if layer["type"] == "Dense":
             st.markdown(f"**Layer {idx + 1}: Dense Layer ({layer['neurons']} neurons)**")
         elif layer["type"] == "Activation":
@@ -220,8 +220,8 @@ def visualize_nn_interactive(structure):
 
     return fig
 
-if st.session_state.nn_structure:
-    fig = visualize_nn_interactive(st.session_state.nn_structure)
+if st.session_state.nn_structure_regression:
+    fig = visualize_nn_interactive(st.session_state.nn_structure_regression)
     st.plotly_chart(fig, use_container_width=True)
 
 
@@ -237,8 +237,8 @@ correct_predictions = 0
 total_predictions = 0
 
 if st.button("Start Training 🚀"):
-    if st.session_state.nn_linklist:
-        for layer in st.session_state.nn_linklist:
+    if st.session_state.nn_linklist_regression:
+        for layer in st.session_state.nn_linklist_regression:
             nn.insert_node(layer)
 
     st.markdown("### Training in Progress...")
@@ -258,7 +258,7 @@ if st.button("Start Training 🚀"):
             
 
             if i==epochs-1:
-                st.session_state.prediction.append(predicted_output)
+                st.session_state.prediction_regression.append(predicted_output)
             
             error = output_array - predicted_output  
 
@@ -274,7 +274,7 @@ if st.button("Start Training 🚀"):
     st.success("Model trained successfully! 🎉")
     layers=nn.get_all_nodes()
     for layer in layers:
-        st.session_state.trained_model_layers.append(layer)
+        st.session_state.trained_model_layers_regression.append(layer)
 
 
 
@@ -301,7 +301,7 @@ if action == "Check Model Accuracy":
     st.write("### Model Accuracy:", accuracy_percentage)
 elif action == "Make Predictions":
 
-    for layer in st.session_state.trained_model_layers:
+    for layer in st.session_state.trained_model_layers_regression:
         nn_trained.insert_node_without_updates(layer)
     st.markdown("Enter new data to make predictions:")
     user_input = st.text_area("Enter input features (comma-separated):")
