@@ -110,13 +110,13 @@ print(input_features_normalized)
 
 
 if "nn_structure" not in st.session_state:
-    st.session_state.nn_structure = []
+    st.session_state.nn_structure_classification = []
 if "nn_linklist" not in st.session_state:
-    st.session_state.nn_linklist=[]
+    st.session_state.nn_linklist_classification=[]
 if "trained_model_layers" not in st.session_state:
-    st.session_state.trained_model_layers=[]
+    st.session_state.trained_model_layers_classification=[]
 if "final_loss" not in st.session_state:
-    st.session_state.final_loss=[]
+    st.session_state.final_loss_classification=[]
 
 
 st.title("Neural Network Builder")
@@ -138,14 +138,14 @@ if st.button("Add Layer"):
         if nn.is_empty()==True:
             
             layer=(DenseLayer(len(input_features_normalized[0]),neurons))
-            st.session_state.nn_linklist.append(layer)
+            st.session_state.nn_linklist_classification.append(layer)
             
-            st.session_state.nn_structure.append({"type": "Dense", "neurons": neurons})
+            st.session_state.nn_structure_classification.append({"type": "Dense", "neurons": neurons})
         else:
            
             layer=(DenseLayer(None,neurons))
-            st.session_state.nn_linklist.append(layer)
-            st.session_state.nn_structure.append({"type": "Dense", "neurons": neurons})
+            st.session_state.nn_linklist_classification.append(layer)
+            st.session_state.nn_structure_classification.append({"type": "Dense", "neurons": neurons})
     elif layer_type == "Activation Layer":
         activation_functions={"ReLU":(relu,relu_derivative),"Sigmoid":(sigmoid,sigmoid_derivative)}
         
@@ -154,13 +154,13 @@ if st.button("Add Layer"):
             act_function=activation_data[0]
             act_derivative=activation_data[1]
         layer=(ActivationLayer(act_function,act_derivative))
-        st.session_state.nn_linklist.append(layer)
+        st.session_state.nn_linklist_classification.append(layer)
         
-        st.session_state.nn_structure.append({"type": "Activation", "activation": activation})
+        st.session_state.nn_structure_classification.append({"type": "Activation", "activation": activation})
 
 st.markdown("### Current Neural Network Structure:")
-if st.session_state.nn_structure:
-    for idx, layer in enumerate(st.session_state.nn_structure):
+if st.session_state.nn_structure_classification:
+    for idx, layer in enumerate(st.session_state.nn_structure_classification):
         if layer["type"] == "Dense":
             st.markdown(f"**Layer {idx + 1}: Dense Layer ({layer['neurons']} neurons)**")
         elif layer["type"] == "Activation":
@@ -223,8 +223,8 @@ def visualize_nn_interactive(structure):
 
     return fig
 
-if st.session_state.nn_structure:
-    fig = visualize_nn_interactive(st.session_state.nn_structure)
+if st.session_state.nn_structure_classification:
+    fig = visualize_nn_interactive(st.session_state.nn_structure_classification)
     st.plotly_chart(fig, use_container_width=True)
 
 st.markdown("#### Step 4: Training Configuration")
@@ -237,8 +237,8 @@ st.markdown("#### Step 5: Train Your Neural Network")
 
 
 if st.button("Start Training 🚀"):
-    if st.session_state.nn_linklist:
-        for layer in st.session_state.nn_linklist:
+    if st.session_state.nn_linklist_classification:
+        for layer in st.session_state.nn_linklist_classification:
             nn.insert_node(layer)
 
     st.markdown("### Training in Progress...")
@@ -264,7 +264,7 @@ if st.button("Start Training 🚀"):
             loss = binary_cross_entropy(output_array, predicted_output) 
             if i==epochs-1:
                 
-                st.session_state.final_loss.append(loss)
+                st.session_state.final_loss_classification.append(loss)
             
             gradients_stack = nn.backward_propagation(error) 
             nn.update_parameters(gradients_stack, learning_rate) 
@@ -272,7 +272,7 @@ if st.button("Start Training 🚀"):
     st.success("Model trained successfully! 🎉")
     layers=nn.get_all_nodes()
     for layer in layers:
-        st.session_state.trained_model_layers.append(layer)
+        st.session_state.trained_model_layers_classification.append(layer)
 
 
 
@@ -283,12 +283,12 @@ action = st.selectbox("Choose Action:", ["Check Model Performance", "Make Predic
 
 if action == "Check Model Performance":
     bce=0
-    if len(st.session_state.final_loss)>0:
-        bce=st.session_state.final_loss[0]
+    if len(st.session_state.final_loss_classification)>0:
+        bce=st.session_state.final_loss_classification[0]
     st.success(f"Model Performace based on Binary Cross Entropy:  {bce:.2f}")
 elif action == "Make Predictions":
 
-    for layer in st.session_state.trained_model_layers:
+    for layer in st.session_state.trained_model_layers_classification:
         nn_trained.insert_node_without_updates(layer)
     st.markdown("Enter new data to make predictions:")
     user_input = st.text_area("Enter input features (comma-separated):")

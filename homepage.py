@@ -77,15 +77,15 @@ col1, col2, col3 = st.columns(3, gap="large")
 # Button navigation with page redirection using st.switch_page
 with col1:
     if st.button("🧮 Regression\nPerform regression tasks on your data", key="regression", help="Go to regression tasks"):
-        st.switch_page("Pages/regressionpage.py")
+        st.switch_page("pages/regressionpage.py")
 
 with col2:
     if st.button("📊 Classification\nClassify data into different categories", key="classification", help="Go to classification tasks"):
-        st.switch_page("Pages/classificationpage.py")
+        st.switch_page("pages/classificationpage.py")
 
 with col3:
     if st.button("💬 NLP Tasks\nWork on text-based tasks and models", key="nlp", help="Go to NLP tasks"):
-        st.switch_page("Pages/nlpPage.py")
+        st.switch_page("pages/nlpPage.py")
 
 # Footer divider and credits
 st.markdown("---")
