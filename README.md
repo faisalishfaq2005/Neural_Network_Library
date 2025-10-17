@@ -2,6 +2,11 @@
 
 Welcome to the **Neural Network & NLP Application**, a powerful tool that integrates machine learning with natural language processing (NLP). This project combines innovative data structures and custom algorithms to build a neural network that can handle both regression and classification tasks. Additionally, it offers NLP functionalities such as keyword extraction, word clustering, and context analysis. In this readme, we will provide you with a detailed overview of the project, its structure, and how you can interact with the app to explore its features.
 
+## Working Flow of Library
+
+https://github.com/user-attachments/assets/f417c511-07e1-4ace-aa8f-3262d86929fb
+
+
 ## Table of Contents
 
 1. [Project Overview](#project-overview)
