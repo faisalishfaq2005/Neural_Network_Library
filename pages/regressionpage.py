@@ -65,6 +65,26 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# Initialize session state variables at the very beginning
+if "nn_structure_regression" not in st.session_state:
+    st.session_state.nn_structure_regression = []
+if "nn_linklist_regression" not in st.session_state:
+    st.session_state.nn_linklist_regression=[]
+if "trained_model_layers_regression" not in st.session_state:
+    st.session_state.trained_model_layers_regression=[]
+if "prediction_regression" not in st.session_state:
+    st.session_state.prediction_regression=[]
+if "nn_trained_regression" not in st.session_state:
+    st.session_state.nn_trained_regression = None
+if "model_mae_regression" not in st.session_state:
+    st.session_state.model_mae_regression = None
+if "model_trained_regression" not in st.session_state:
+    st.session_state.model_trained_regression = False
+if "csv_columns" not in st.session_state:
+    st.session_state.csv_columns = None
+if "original_data" not in st.session_state:
+    st.session_state.original_data = None
+
 st.title("🧠 Neural Network Regression Trainer")
 st.markdown("### Build, Train, and Evaluate a Neural Network with Intuitive Controls")
 
@@ -135,27 +155,6 @@ else:
 print("Input Features Normalized Shape:", input_features_normalized.shape if input_features_normalized is not None else "None")
 print("Output Features Normalized Shape:", output_features_normalized.shape if output_features_normalized is not None else "None")
 
-
-
-
-if "nn_structure_regression" not in st.session_state:
-    st.session_state.nn_structure_regression = []
-if "nn_linklist_regression" not in st.session_state:
-    st.session_state.nn_linklist_regression=[]
-if "trained_model_layers_regression" not in st.session_state:
-    st.session_state.trained_model_layers_regression=[]
-if "prediction_regression" not in st.session_state:
-    st.session_state.prediction_regression=[]
-if "nn_trained_regression" not in st.session_state:
-    st.session_state.nn_trained_regression = None
-if "model_mae_regression" not in st.session_state:
-    st.session_state.model_mae_regression = None
-if "model_trained_regression" not in st.session_state:
-    st.session_state.model_trained_regression = False
-if "csv_columns" not in st.session_state:
-    st.session_state.csv_columns = None
-if "original_data" not in st.session_state:
-    st.session_state.original_data = None
 
 
 st.title("Neural Network Builder")

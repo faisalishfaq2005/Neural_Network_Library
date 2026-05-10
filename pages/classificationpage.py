@@ -67,6 +67,26 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# Initialize session state variables at the very beginning
+if "nn_structure_classification" not in st.session_state:
+    st.session_state.nn_structure_classification = []
+if "nn_linklist_classification" not in st.session_state:
+    st.session_state.nn_linklist_classification=[]
+if "trained_model_layers_classification" not in st.session_state:
+    st.session_state.trained_model_layers_classification=[]
+if "final_loss_classification" not in st.session_state:
+    st.session_state.final_loss_classification=[]
+if "nn_trained_classification" not in st.session_state:
+    st.session_state.nn_trained_classification = None
+if "model_accuracy_classification" not in st.session_state:
+    st.session_state.model_accuracy_classification = None
+if "model_trained_classification" not in st.session_state:
+    st.session_state.model_trained_classification = False
+if "csv_columns_classification" not in st.session_state:
+    st.session_state.csv_columns_classification = None
+if "original_data_classification" not in st.session_state:
+    st.session_state.original_data_classification = None
+
 st.title("🧠 Neural Network Classification Trainer")
 st.markdown("### Build, Train, and Evaluate a Neural Network with Intuitive Controls")
 
@@ -133,22 +153,6 @@ print("Input Features Normalized Shape:", input_features_normalized.shape if inp
 
 if "nn_structure" not in st.session_state:
     st.session_state.nn_structure_classification = []
-if "nn_linklist" not in st.session_state:
-    st.session_state.nn_linklist_classification=[]
-if "trained_model_layers" not in st.session_state:
-    st.session_state.trained_model_layers_classification=[]
-if "final_loss" not in st.session_state:
-    st.session_state.final_loss_classification=[]
-if "nn_trained_classification" not in st.session_state:
-    st.session_state.nn_trained_classification = None
-if "model_accuracy_classification" not in st.session_state:
-    st.session_state.model_accuracy_classification = None
-if "model_trained_classification" not in st.session_state:
-    st.session_state.model_trained_classification = False
-if "csv_columns_classification" not in st.session_state:
-    st.session_state.csv_columns_classification = None
-if "original_data_classification" not in st.session_state:
-    st.session_state.original_data_classification = None
 
 
 st.title("Neural Network Builder")
