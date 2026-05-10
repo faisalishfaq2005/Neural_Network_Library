@@ -83,10 +83,15 @@ if uploaded_file:
     data = pd.read_csv(uploaded_file)
     input_features=data.iloc[:,:-1].values
     output_features=data.iloc[:,-1].values.reshape(-1,1)
+    
+    # Store column names and original data for predictions
+    if st.session_state.csv_columns is None:
+        st.session_state.csv_columns = list(data.columns[:-1])
+        st.session_state.original_data = data
+        st.session_state.target_column = data.columns[-1]
+    
     if input_features is not None:
         print(input_features.shape)
-
-
 
     st.write("### Uploaded Data", data.head())
 else:
@@ -141,6 +146,16 @@ if "trained_model_layers_regression" not in st.session_state:
     st.session_state.trained_model_layers_regression=[]
 if "prediction_regression" not in st.session_state:
     st.session_state.prediction_regression=[]
+if "nn_trained_regression" not in st.session_state:
+    st.session_state.nn_trained_regression = None
+if "model_mae_regression" not in st.session_state:
+    st.session_state.model_mae_regression = None
+if "model_trained_regression" not in st.session_state:
+    st.session_state.model_trained_regression = False
+if "csv_columns" not in st.session_state:
+    st.session_state.csv_columns = None
+if "original_data" not in st.session_state:
+    st.session_state.original_data = None
 
 
 st.title("Neural Network Builder")
@@ -180,7 +195,18 @@ if st.button("Add Layer"):
         layer=(ActivationLayer(act_function,act_derivative))
         st.session_state.nn_linklist_regression.append(layer)
         
-        st.session_state.nn_structure_regression.append({"type": "Activation", "activation": activation})
+        # Get neuron count from last dense layer
+        last_neuron_count = None
+        for i in range(len(st.session_state.nn_structure_regression) - 1, -1, -1):
+            if st.session_state.nn_structure_regression[i]["type"] == "Dense":
+                last_neuron_count = st.session_state.nn_structure_regression[i]["neurons"]
+                break
+        
+        st.session_state.nn_structure_regression.append({
+            "type": "Activation", 
+            "activation": activation,
+            "neurons": last_neuron_count
+        })
 
 st.markdown("### Current Neural Network Structure:")
 if st.session_state.nn_structure_regression:
@@ -352,10 +378,15 @@ if st.button("Start Training 🚀", key="train_regression"):
     status_text.success("✅ Model trained successfully! 🎉")
     progress_bar.progress(1.0)
     
-    # Store trained layers
+    # Store trained layers and model info in session state
     layers = nn.get_all_nodes()
     for layer in layers:
         st.session_state.trained_model_layers_regression.append(layer)
+    
+    # Persist the trained model to session state for predictions
+    st.session_state.nn_trained_regression = nn
+    st.session_state.model_mae_regression = mae
+    st.session_state.model_trained_regression = True
     
     # Display final training summary
     st.markdown("### 📊 Training Summary")
@@ -380,75 +411,130 @@ if st.button("Start Training 🚀", key="train_regression"):
 
 
 
-st.markdown("### What Would You Like to Do Next?")
-action = st.selectbox("Choose Action:", ["Check Model Performance", "Make Predictions"])
+# Show model trained status and options for what to do next
+if st.session_state.model_trained_regression:
+    st.markdown("### ✅ Model Status: TRAINED")
+    status_col1, status_col2, status_col3 = st.columns(3)
+    with status_col1:
+        st.metric("📏 Model MAE", f"{st.session_state.model_mae_regression:.6f}")
+    with status_col2:
+        st.metric("🧠 Total Layers", len(st.session_state.nn_structure_regression))
+    with status_col3:
+        st.metric("✓ Status", "Ready to Predict")
 
-if action == "Check Model Performance":
-    mae_value = 0
-    if correct_predictions > 0 and total_predictions > 0:
-        mae_value = (correct_predictions / total_predictions)
+st.markdown("### What Would You Like to Do Next?")
+if st.session_state.model_trained_regression:
+    action = st.selectbox("Choose Action:", ["Check Model Performance", "Make Predictions"])
     
-    # Display MAE with styled metric
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("📏 Mean Absolute Error", f"{mae_value:.6f}")
-    with col2:
-        st.metric("📉 Total Error Sum", f"{correct_predictions:.6f}")
-    with col3:
-        st.metric("📊 Total Predictions", f"{total_predictions}")
-    
-elif action == "Make Predictions":
-    for layer in st.session_state.trained_model_layers_regression:
-        nn_trained.insert_node_without_updates(layer)
-    
-    st.markdown("### 🔮 Make New Predictions")
-    st.info("Enter input features in the same format as your training data")
-    
-    user_input = st.text_area("Enter input features (comma-separated):", placeholder="e.g., 100,200,300")
-    
-    if st.button("Predict 🎯", key="predict_regression"):
-        try:
-            inputs = np.array([float(i) for i in user_input.split(",")]).reshape(1, -1)
+    if action == "Check Model Performance":
+        # Display training summary
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("📏 Final MAE", f"{st.session_state.model_mae_regression:.6f}")
+        with col2:
+            st.metric("🧠 Network Layers", len(st.session_state.nn_structure_regression))
+        with col3:
+            st.metric("✓ Model Status", "Trained")
+        
+    elif action == "Make Predictions":
+        st.markdown("### 🔮 Make New Predictions")
+        st.info("Enter values for each input feature")
+        
+        if st.session_state.csv_columns and st.session_state.original_data is not None:
+            # Create column-based input form
+            prediction_inputs = {}
+            input_cols = st.columns(min(3, len(st.session_state.csv_columns)))
             
-            if inputs.size > 0:
-                # Check if we have input metadata
-                if hasattr(st.session_state, 'input_metadata'):
-                    # Use new denormalization with metadata
-                    inputs_normalized = (inputs - st.session_state.input_metadata['min_values']) / (
-                        st.session_state.input_metadata['max_values'] - st.session_state.input_metadata['min_values']
-                    )
-                else:
-                    # Fallback: calculate from normalized training data (old method)
-                    input_min = np.min(input_features_normalized, axis=0)
-                    input_max = np.max(input_features_normalized, axis=0)
-                    inputs_normalized = (inputs - input_min) / (input_max - input_min)
+            for idx, col_name in enumerate(st.session_state.csv_columns):
+                col_index = idx % len(input_cols)
                 
-                # Forward propagation
-                predicted_output_normalized = nn_trained.forward_propogation(inputs_normalized)
-                
-                # Denormalize prediction
-                if hasattr(st.session_state, 'output_metadata'):
-                    prediction = denormalize(predicted_output_normalized, st.session_state.output_metadata)
-                else:
-                    # Fallback: use old method
-                    output_min = np.min(output_features_normalized, axis=0)
-                    output_max = np.max(output_features_normalized, axis=0)
-                    prediction = predicted_output_normalized * (output_max - output_min) + output_min
-                
-                # Display prediction with nice formatting
-                st.markdown("---")
-                col1, col2 = st.columns([1, 2])
-                
-                with col1:
-                    st.markdown("### Prediction Result")
-                
-                with col2:
-                    st.metric("🎯 Predicted Value", f"{prediction.flatten()[0]:.4f}", 
-                             delta=f"Based on {len(inputs[0])} features")
-                
-                st.success("Prediction completed successfully! ✅")
-                
-        except ValueError:
-            st.error("❌ Please enter valid numbers separated by commas")
-        except Exception as e:
-            st.error(f"❌ Error making prediction: {str(e)}")
+                with input_cols[col_index]:
+                    # Check if this column was categorical in original data
+                    original_col_data = st.session_state.original_data[col_name].values
+                    is_categorical = False
+                    
+                    try:
+                        # Try to convert to numeric - if it fails, it's categorical
+                        numeric_vals = pd.to_numeric(original_col_data, errors='coerce')
+                        # If more than 30% are NaN after conversion, treat as categorical
+                        if numeric_vals.isna().sum() / len(numeric_vals) > 0.3:
+                            is_categorical = True
+                    except:
+                        is_categorical = True
+                    
+                    if is_categorical:
+                        # Show dropdown for categorical
+                        unique_vals = list(st.session_state.original_data[col_name].unique())
+                        prediction_inputs[col_name] = st.selectbox(
+                            f"📋 {col_name}",
+                            unique_vals,
+                            key=f"select_{col_name}"
+                        )
+                    else:
+                        # Show number input for numeric
+                        prediction_inputs[col_name] = st.number_input(
+                            f"🔢 {col_name}",
+                            value=0.0,
+                            step=0.1,
+                            key=f"input_{col_name}"
+                        )
+            
+            if st.button("Predict 🎯", key="predict_regression"):
+                try:
+                    # Prepare input array from form values
+                    input_values = np.array([prediction_inputs[col] for col in st.session_state.csv_columns]).reshape(1, -1)
+                    
+                    # Handle categorical encoding and normalization
+                    if hasattr(st.session_state, 'input_metadata'):
+                        # Make a copy to modify
+                        inputs_to_normalize = input_values.copy().astype(float)
+                        
+                        # Handle categorical encoding for each column
+                        for col_idx, col_name in enumerate(st.session_state.csv_columns):
+                            if col_name in st.session_state.input_metadata.get('categorical_encoders', {}):
+                                encoder = st.session_state.input_metadata['categorical_encoders'][col_name]
+                                try:
+                                    # Encode the categorical value
+                                    encoded_val = encoder.transform(np.array([[input_values[0][col_idx]]]))[0][0]
+                                    inputs_to_normalize[0][col_idx] = encoded_val
+                                except Exception as e:
+                                    st.warning(f"Could not encode {col_name}: {str(e)}")
+                        
+                        # Normalize numeric features
+                        inputs_normalized = (inputs_to_normalize - st.session_state.input_metadata['min_values']) / (
+                            st.session_state.input_metadata['max_values'] - st.session_state.input_metadata['min_values'] + 1e-8
+                        )
+                    else:
+                        inputs_normalized = input_values
+                    
+                    # Get prediction from trained model
+                    if st.session_state.nn_trained_regression is not None:
+                        prediction = st.session_state.nn_trained_regression.forward_propogation(inputs_normalized)
+                        
+                        if prediction is not None:
+                            # Denormalize the output
+                            if hasattr(st.session_state, 'output_metadata'):
+                                denormalized_pred = prediction * (
+                                    st.session_state.output_metadata['max_values'] - st.session_state.output_metadata['min_values']
+                                ) + st.session_state.output_metadata['min_values']
+                            else:
+                                denormalized_pred = prediction
+                            
+                            st.success("✅ Prediction Successful!")
+                            st.markdown("### 🎯 Prediction Result")
+                            col1, col2 = st.columns(2)
+                            
+                            with col1:
+                                st.metric("Predicted Value", f"{float(denormalized_pred[0][0]):.6f}")
+                            with col2:
+                                st.metric("Normalized Value", f"{float(prediction[0][0]):.6f}")
+                        else:
+                            st.error("Could not generate prediction.")
+                    else:
+                        st.error("Model not available. Please train the model first.")
+                except Exception as e:
+                    st.error(f"Prediction error: {str(e)}")
+        else:
+            st.warning("Please upload a CSV file first to proceed with predictions.")
+else:
+    st.warning("⚠️ Please train the model first before making predictions.")

@@ -172,10 +172,18 @@ class NetworkVisualizer:
             
             # Add layer label above/below with better positioning
             label_y = max(y_positions) + neuron_spacing * 0.8 if layer_idx % 2 == 0 else min(y_positions) - neuron_spacing * 0.8
+            
+            # For Activation layers, don't show neuron count - just show activation type
+            if layer['type'] == 'Activation':
+                label_text = f"<b>{layer_label}</b><br><i>Activation Layer</i>"
+            else:
+                # For Dense and Input layers, show neuron count
+                label_text = f"<b>{layer_label}</b><br><i>({neurons_count} {'neurons' if neurons_count > 1 else 'neuron'})</i>"
+            
             fig.add_annotation(
                 x=x,
                 y=label_y,
-                text=f"<b>{layer_label}</b><br><i>({neurons_count} {'neurons' if neurons_count > 1 else 'neuron'})</i>",
+                text=label_text,
                 showarrow=False,
                 font=dict(
                     size=11,
