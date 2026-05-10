@@ -39,220 +39,290 @@ class NetworkVisualizer:
         }
         
     def visualize_architecture(self, show_layer_info: bool = True) -> go.Figure:
-        """
-        Create beautiful static visualization of network architecture
-        
-        Args:
-            show_layer_info: Whether to show neuron count and activation info
-            
-        Returns:
-            Plotly figure object
-        """
+        """Create a modern dark-themed neural network architecture visualization."""
         fig = go.Figure()
-        
-        # Calculate positions with better spacing
-        layer_spacing = 180
-        max_neurons = max(d.get('neurons', 3) for d in self.structure) if self.structure else 3
-        neuron_spacing = max(50, 80 / (max_neurons / 2))
-        
-        positions = []
-        node_traces = []
-        edge_traces = []
-        
-        # Create layer positions
+
+        # ── Build enriched layer list with parameter counts ──────────────────
         all_layers = []
-        
-        # Add input layer
+        prev_n = self.input_size or 1
+        total_params = 0
+
         if self.input_size:
-            all_layers.append({'type': 'Input', 'neurons': self.input_size, 'index': -1, 'activation': None})
-        
-        for idx, layer in enumerate(self.structure):
-            layer['index'] = idx
-            all_layers.append(layer)
-        
-        # Draw layers with improved styling
-        for layer_idx, layer in enumerate(all_layers):
-            x = layer_idx * layer_spacing
-            neurons_count = layer.get('neurons', 3)
-            
-            # Limit display of neurons for clarity (max 12 for better visualization)
-            display_neurons = min(neurons_count, 12)
-            
-            y_positions = np.linspace(
-                -display_neurons * neuron_spacing / 2,
-                display_neurons * neuron_spacing / 2,
-                display_neurons
-            )
-            positions.append([(x, y) for y in y_positions])
-            
-            # Determine node color and label
-            if layer['type'] == 'Input' or layer['type'] == 'input':
-                color = self.colors['input']
-                layer_label = 'Input Layer'
-                icon = '🔵'
+            all_layers.append({
+                'type': 'Input', 'neurons': self.input_size,
+                'display_n': min(self.input_size, 7),
+                'params': 0, 'activation': None,
+            })
+
+        for layer in self.structure:
+            if layer['type'] == 'Dense':
+                n = layer['neurons']
+                p = prev_n * n + n
+                total_params += p
+                all_layers.append({
+                    'type': 'Dense', 'neurons': n,
+                    'display_n': min(n, 7),
+                    'params': p, 'activation': None,
+                })
+                prev_n = n
             elif layer['type'] == 'Activation':
-                color = self.colors['activation']
-                activation_type = layer.get('activation', 'Activation')
-                layer_label = f'{activation_type}'
-                icon = '🟠'
-            elif layer['type'] == 'Dense':
-                color = self.colors['dense']
-                layer_label = 'Dense Layer'
-                icon = '🔴'
-            else:
-                color = self.colors['output']
-                layer_label = 'Output'
-                icon = '🟢'
-            
-            # Add nodes with improved styling
-            x_coords = [x] * len(y_positions)
-            y_coords = y_positions
-            
-            # Draw connection edges first (behind nodes) with gradient effect
-            if layer_idx < len(all_layers) - 1:
-                current_layer = positions[-1]
-                next_layer = positions[layer_idx + 1] if layer_idx + 1 < len(positions) else []
-                
-                if next_layer:
-                    for (x1, y1) in current_layer:
-                        for (x2, y2) in next_layer:
-                            edge_traces.append(
-                                go.Scatter(
-                                    x=[x1, x2], y=[y1, y2],
-                                    mode='lines',
-                                    line=dict(
-                                        color='rgba(52, 73, 94, 0.3)',
-                                        width=2,
-                                        dash='solid'
-                                    ),
-                                    hoverinfo='none',
-                                    showlegend=False,
-                                    opacity=0.5
-                                )
-                            )
-            
-            # Enhanced neuron node rendering
-            hover_text = []
-            for i in range(len(y_positions)):
-                if layer['type'].lower() == 'input':
-                    text = f"<b>Feature {i+1}</b><br>Input Node"
-                elif layer['type'].lower() == 'activation':
-                    text = f"<b>Neuron {i+1}</b><br>Type: {layer.get('activation', 'Activation')}"
-                elif layer['type'].lower() == 'dense':
-                    text = f"<b>Neuron {i+1}</b><br>Dense Layer"
+                all_layers.append({
+                    'type': 'Activation', 'neurons': prev_n,
+                    'display_n': min(prev_n, 7),
+                    'params': 0, 'activation': layer.get('activation', 'ReLU'),
+                })
+
+        if not all_layers:
+            fig.update_layout(
+                paper_bgcolor='#0D1117', plot_bgcolor='#0D1117', height=300,
+                annotations=[dict(
+                    text='<b>Add layers to see the architecture</b>',
+                    showarrow=False, font=dict(color='rgba(200,200,200,0.6)', size=16),
+                    x=0.5, y=0.5, xref='paper', yref='paper'
+                )]
+            )
+            return fig
+
+        # ── Layout constants ─────────────────────────────────────────────────
+        NEURON_GAP = 52
+        LAYER_SEP = 230
+        NODE_R = 18
+        CARD_W = 134
+        CARD_PAD = 38
+
+        # Color palette: (node, glow, card_bg, card_border, conn)
+        C = {
+            'Input':      ('#00D9FF', 'rgba(0,217,255,0.28)',   'rgba(0,217,255,0.07)',   'rgba(0,217,255,0.55)',   'rgba(0,217,255,0.15)'),
+            'Dense':      ('#D97BFF', 'rgba(217,123,255,0.28)', 'rgba(217,123,255,0.07)', 'rgba(217,123,255,0.55)', 'rgba(217,123,255,0.15)'),
+            'Activation': ('#FFB830', 'rgba(255,184,48,0.28)',  'rgba(255,184,48,0.07)',  'rgba(255,184,48,0.55)',  'rgba(255,184,48,0.15)'),
+        }
+
+        # ── Compute y positions per layer ────────────────────────────────────
+        layer_x = [i * LAYER_SEP for i in range(len(all_layers))]
+        layer_y = {}
+        for i, layer in enumerate(all_layers):
+            dn = layer['display_n']
+            layer_y[i] = [(j - (dn - 1) / 2.0) * NEURON_GAP for j in range(dn)]
+
+        max_y_val = max(max(ys) for ys in layer_y.values())
+        min_y_val = min(min(ys) for ys in layer_y.values())
+        x_left  = layer_x[0]  - CARD_W / 2 - 20
+        x_right = layer_x[-1] + CARD_W / 2 + 20
+
+        # ── Subtle dot grid (background decoration) ──────────────────────────
+        grid_xs, grid_ys = [], []
+        step = 45
+        gy_start = int(min_y_val - CARD_PAD - 140)
+        gy_end   = int(max_y_val + CARD_PAD + 70)
+        gx_start = int(x_left  - 10)
+        gx_end   = int(x_right + 10)
+        for gx in range(gx_start, gx_end, step):
+            for gy in range(gy_start, gy_end, step):
+                grid_xs.append(gx)
+                grid_ys.append(gy)
+        fig.add_trace(go.Scatter(
+            x=grid_xs, y=grid_ys, mode='markers',
+            marker=dict(size=1.8, color='rgba(255,255,255,0.055)', symbol='circle'),
+            showlegend=False, hoverinfo='none',
+        ))
+
+        # ── Connections (S-curve via spline with 4 control points) ───────────
+        for i in range(len(all_layers) - 1):
+            sx, dx = layer_x[i], layer_x[i + 1]
+            sy_list, dy_list = layer_y[i], layer_y[i + 1]
+            conn_color = C.get(all_layers[i]['type'], C['Dense'])[4]
+
+            pairs = [(sy, dy) for sy in sy_list for dy in dy_list]
+            if len(pairs) > 30:
+                step_c = max(1, len(pairs) // 22)
+                pairs = pairs[::step_c]
+
+            for sy, dy in pairs:
+                t = 0.32  # bezier tension: how far inward the control points are
+                fig.add_trace(go.Scatter(
+                    x=[sx, sx + (dx - sx) * t, sx + (dx - sx) * (1 - t), dx],
+                    y=[sy, sy,                  dy,                        dy],
+                    mode='lines',
+                    line=dict(color=conn_color, width=1.1, shape='spline'),
+                    hoverinfo='none', showlegend=False,
+                ))
+
+        # ── Layer glass cards ─────────────────────────────────────────────────
+        for i, layer in enumerate(all_layers):
+            _, _, card_bg, card_border, _ = C.get(layer['type'], C['Dense'])
+            ys = layer_y[i]
+            top = max(ys) + CARD_PAD
+            bot = min(ys) - CARD_PAD
+            cx  = layer_x[i]
+            # Outer card
+            fig.add_shape(type='rect',
+                x0=cx - CARD_W / 2, y0=bot, x1=cx + CARD_W / 2, y1=top,
+                fillcolor=card_bg, line=dict(color=card_border, width=1.5),
+                layer='below',
+            )
+            # Inner shimmer strip (top highlight)
+            fig.add_shape(type='rect',
+                x0=cx - CARD_W / 2 + 2, y0=top - 6, x1=cx + CARD_W / 2 - 2, y1=top - 2,
+                fillcolor='rgba(255,255,255,0.06)', line=dict(width=0),
+                layer='below',
+            )
+
+        # ── Neuron glow halos ─────────────────────────────────────────────────
+        for i, layer in enumerate(all_layers):
+            glow_c = C.get(layer['type'], C['Dense'])[1]
+            ys = layer_y[i]
+            fig.add_trace(go.Scatter(
+                x=[layer_x[i]] * len(ys), y=ys,
+                mode='markers',
+                marker=dict(size=NODE_R * 2.7, color=glow_c, line=dict(width=0)),
+                showlegend=False, hoverinfo='none',
+            ))
+
+        # ── Neuron bodies ─────────────────────────────────────────────────────
+        for i, layer in enumerate(all_layers):
+            node_c = C.get(layer['type'], C['Dense'])[0]
+            ys = layer_y[i]
+            n_shown  = layer['display_n']
+            n_actual = layer['neurons']
+
+            hover = []
+            for j in range(n_shown):
+                if layer['type'] == 'Input':
+                    hover.append(f"<b>Input Feature {j + 1}</b><br>{n_actual} total features<br>0 parameters")
+                elif layer['type'] == 'Activation':
+                    hover.append(f"<b>{layer['activation']} Unit {j + 1}</b><br>Activation function<br>0 parameters")
                 else:
-                    text = f"<b>Output {i+1}</b><br>Output Layer"
-                hover_text.append(text)
-            
-            node_traces.append(
-                go.Scatter(
-                    x=x_coords,
-                    y=y_coords,
-                    mode='markers',
-                    marker=dict(
-                        size=30,
-                        color=color,
-                        line=dict(
-                            color='rgba(255, 255, 255, 0.8)',
-                            width=3
-                        ),
-                        opacity=0.95,
-                        symbol='circle',
-                        sizemode='diameter'
-                    ),
-                    text=hover_text,
-                    hovertext=hover_text,
-                    hoverinfo='text',
-                    name=layer_label,
-                    showlegend=True,
-                    legendgroup=f"layer_{layer_idx}",
-                    customdata=[[layer['type'], neurons_count, layer.get('activation', 'N/A')]] * len(y_positions)
-                )
-            )
-            
-            # Add layer label above/below with better positioning
-            label_y = max(y_positions) + neuron_spacing * 0.8 if layer_idx % 2 == 0 else min(y_positions) - neuron_spacing * 0.8
-            
-            # For Activation layers, don't show neuron count - just show activation type
-            if layer['type'] == 'Activation':
-                label_text = f"<b>{layer_label}</b><br><i>Activation Layer</i>"
-            else:
-                # For Dense and Input layers, show neuron count
-                label_text = f"<b>{layer_label}</b><br><i>({neurons_count} {'neurons' if neurons_count > 1 else 'neuron'})</i>"
-            
-            fig.add_annotation(
-                x=x,
-                y=label_y,
-                text=label_text,
-                showarrow=False,
-                font=dict(
-                    size=11,
-                    color='#2C3E50',
-                    family='Arial Black'
+                    hover.append(f"<b>Dense Neuron {j + 1}/{n_actual}</b><br>Trainable params: {layer['params']:,}<br>Weight matrix: {prev_n}×{n_actual}")
+
+            fig.add_trace(go.Scatter(
+                x=[layer_x[i]] * n_shown, y=ys,
+                mode='markers+text',
+                marker=dict(
+                    size=NODE_R * 2,
+                    color=node_c,
+                    line=dict(color='rgba(255,255,255,0.45)', width=2),
                 ),
-                bgcolor='rgba(236, 240, 241, 0.7)',
-                bordercolor='#95A5A6',
-                borderwidth=1,
-                borderpad=8,
-                align='center'
-            )
-        
-        # Add edges first (background)
-        for edge_trace in edge_traces:
-            fig.add_trace(edge_trace)
-        
-        # Add nodes on top
-        for node_trace in node_traces:
-            fig.add_trace(node_trace)
-        
-        # Update layout with enhanced professional styling
-        fig.update_layout(
-            title=dict(
-                text="<b>🧠 Neural Network Architecture</b>",
-                font=dict(size=26, color='#2C3E50', family='Arial Black'),
-                x=0.5,
-                xanchor='center',
-                y=0.98,
-                yanchor='top'
-            ),
-            showlegend=True,
-            legend=dict(
-                x=1.02,
-                y=1,
-                xanchor='left',
+                text=[str(j + 1) for j in range(n_shown)],
+                textfont=dict(size=9, color='white', family='Arial Black'),
+                textposition='middle center',
+                hovertext=hover, hoverinfo='text',
+                showlegend=False,
+            ))
+
+            if n_actual > n_shown:
+                fig.add_annotation(
+                    x=layer_x[i], y=max(ys) + NEURON_GAP * 0.62,
+                    text=f"+{n_actual - n_shown} more",
+                    showarrow=False,
+                    font=dict(size=9, color='rgba(200,200,200,0.5)', family='Arial'),
+                )
+
+        # ── Info panels below each card ───────────────────────────────────────
+        for i, layer in enumerate(all_layers):
+            node_c, _, _, card_border, _ = C.get(layer['type'], C['Dense'])
+            ys    = layer_y[i]
+            bot   = min(ys) - CARD_PAD
+            cx    = layer_x[i]
+
+            if layer['type'] == 'Input':
+                badge = 'INPUT'
+                detail = f"{layer['neurons']} features"
+                sub    = '─── no params ───'
+            elif layer['type'] == 'Dense':
+                badge = 'DENSE'
+                detail = f"{layer['neurons']} neurons"
+                sub    = f"{layer['params']:,} parameters"
+            else:
+                badge = layer['activation'].upper()
+                detail = 'activation fn'
+                sub    = '─── no params ───'
+
+            fig.add_annotation(
+                x=cx, y=bot - 10,
+                text=(f"<b style='color:{node_c};font-size:11px;letter-spacing:1px'>{badge}</b><br>"
+                      f"<span style='color:#ccc;font-size:10px'>{detail}</span><br>"
+                      f"<span style='color:#888;font-size:9px'>{sub}</span>"),
+                showarrow=False, align='center',
+                font=dict(size=11, color=node_c, family='Courier New'),
+                bgcolor='rgba(13,17,23,0.85)',
+                bordercolor=card_border, borderwidth=1, borderpad=9,
                 yanchor='top',
-                bgcolor='rgba(255, 255, 255, 0.8)',
-                bordercolor='#95A5A6',
-                borderwidth=1,
-                font=dict(size=11, color='#2C3E50')
-            ),
-            hovermode='closest',
-            margin=dict(b=40, l=40, r=200, t=80),
-            xaxis=dict(
-                showgrid=False,
-                zeroline=False,
-                showticklabels=False,
-                visible=False
-            ),
-            yaxis=dict(
-                showgrid=False,
-                zeroline=False,
-                showticklabels=False,
-                visible=False
-            ),
-            plot_bgcolor='rgba(236, 240, 241, 0.5)',
-            paper_bgcolor='white',
-            height=700,
-            width=1300,
-            font=dict(family='Arial', size=12),
-            hoverlabel=dict(
-                bgcolor='#2C3E50',
-                font_size=12,
-                font_family='Arial',
-                font_color='white'
             )
+
+        # ── Layer index chips (above each card) ───────────────────────────────
+        for i, layer in enumerate(all_layers):
+            node_c = C.get(layer['type'], C['Dense'])[0]
+            ys  = layer_y[i]
+            top = max(ys) + CARD_PAD
+            cx  = layer_x[i]
+            fig.add_annotation(
+                x=cx, y=top + 10,
+                text=f"<b>Layer {i + 1}</b>",
+                showarrow=False,
+                font=dict(size=10, color='rgba(210,210,210,0.55)', family='Arial'),
+                yanchor='bottom',
+            )
+
+        # ── Legend chips (top-right corner) ──────────────────────────────────
+        legend_items = [
+            ('● Input',      C['Input'][0]),
+            ('● Dense',      C['Dense'][0]),
+            ('● Activation', C['Activation'][0]),
+        ]
+        legend_x = x_right - 10
+        legend_y_start = max_y_val + CARD_PAD + 8
+        for li, (label, color) in enumerate(legend_items):
+            fig.add_annotation(
+                x=legend_x, y=legend_y_start - li * 22,
+                text=f"<span style='color:{color}'>{label}</span>",
+                showarrow=False, align='right',
+                font=dict(size=11, family='Arial', color=color),
+                xanchor='right', yanchor='top',
+            )
+
+        # ── Stats bar (bottom) ────────────────────────────────────────────────
+        stats_y = min_y_val - CARD_PAD - 92
+        fig.add_shape(type='rect',
+            x0=x_left, y0=stats_y - 24, x1=x_right, y1=stats_y + 24,
+            fillcolor='rgba(255,255,255,0.03)',
+            line=dict(color='rgba(255,255,255,0.09)', width=1),
         )
-        
+        fig.add_annotation(
+            x=(x_left + x_right) / 2, y=stats_y,
+            text=(
+                f"<span style='color:#888'>Architecture  ·  </span>"
+                f"<b style='color:#00D9FF'>{len(all_layers)}</b>"
+                f"<span style='color:#666'> layers  ·  </span>"
+                f"<b style='color:#D97BFF'>{total_params:,}</b>"
+                f"<span style='color:#666'> trainable parameters</span>"
+            ),
+            showarrow=False,
+            font=dict(size=12, color='rgba(200,200,200,0.8)', family='Courier New'),
+            align='center',
+        )
+
+        # ── Layout ────────────────────────────────────────────────────────────
+        fig.update_layout(
+            paper_bgcolor='#0D1117',
+            plot_bgcolor='#0D1117',
+            font=dict(family='Arial', color='white'),
+            title=dict(
+                text='<b>Neural Network Architecture</b>',
+                font=dict(size=20, color='#E6EDF3', family='Arial'),
+                x=0.5, xanchor='center', y=0.99, yanchor='top',
+            ),
+            showlegend=False,
+            hovermode='closest',
+            margin=dict(l=30, r=30, t=50, b=20),
+            xaxis=dict(visible=False, range=[x_left - 10, x_right + 10]),
+            yaxis=dict(visible=False, range=[stats_y - 36, max_y_val + CARD_PAD + 62]),
+            height=720,
+            hoverlabel=dict(
+                bgcolor='#1C2333',
+                font_size=12, font_family='Courier New', font_color='white',
+                bordercolor='rgba(255,255,255,0.15)',
+            ),
+        )
         return fig
     
     def create_training_dashboard(self) -> Tuple[go.Figure, Dict]:
