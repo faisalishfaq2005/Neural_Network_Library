@@ -57,6 +57,11 @@ st.markdown("""
     line-height: 1.7;
     text-align: center !important;
     display: block;
+    width: 100%;
+}
+[data-testid="stMarkdownContainer"] p.hero-sub,
+[data-testid="stMarkdownContainer"] .hero-sub {
+    text-align: center !important;
 }
 .hero-stats {
     display: flex;
@@ -209,7 +214,7 @@ st.markdown("""
 <div class="hero">
   <div class="hero-badge">DSA FINAL PROJECT &nbsp;·&nbsp; NEURAL NETWORK LIBRARY</div>
   <h1 class="hero-title">Neural Network Library</h1>
-  <p class="hero-sub">
+  <p class="hero-sub" style="text-align:center !important;margin-left:auto;margin-right:auto;width:100%;display:block;">
     An interactive platform for building and training neural networks from scratch,
     powered entirely by custom-built data structures — Linked Lists, Stacks, Queues, and Graphs.
   </p>
