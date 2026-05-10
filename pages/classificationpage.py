@@ -93,17 +93,30 @@ else:
 st.markdown("#### Step 2: Data Normalization")
 normalize_data = st.checkbox("Normalize Data?", value=True)
 if normalize_data and input_features is not None and input_features.size > 0 and output_features is not None and output_features.size > 0:
+    try:
+        # New normalize function returns (data, metadata, encoded_categorical)
+        input_features_normalized, input_metadata, _ = normalize(
+            input_features,
+            handle_categorical=True,
+            categorical_method='label'
+        )
+        
+        # Store metadata for denormalization later
+        st.session_state.input_metadata = input_metadata
+        st.session_state.output_features_original = output_features
 
-    input_features_normalized, input_min, input_max = normalize(input_features)
-    
-    
-
-    st.success("Data normalized successfully!")
-    st.write("Normalized Data Preview:")
+        st.success("Data normalized successfully!")
+        st.write("Normalized Data Preview:")
+        st.write(f"Input shape: {input_features_normalized.shape}")
+    except Exception as e:
+        st.error(f"Error during normalization: {str(e)}")
+        st.info("Please ensure your dataset contains valid numeric values or categorical values that can be encoded.")
+        st.stop()
 else:
     st.warning("Data will not be normalized.")
+    input_features_normalized = input_features
 
-print(input_features_normalized)
+print("Input Features Normalized Shape:", input_features_normalized.shape if input_features_normalized is not None else "None")
 
 
 

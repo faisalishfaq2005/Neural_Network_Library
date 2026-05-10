@@ -134,12 +134,27 @@ price = price.reshape(-1, 1)
 print(input_features.shape)
 print(price)
 
-input_features_normalized, input_min, input_max = normalize(input_features)
-price_normalized, price_min, price_max = normalize(price)
+try:
+    # New normalize function returns (data, metadata, encoded_categorical)
+    input_features_normalized, input_metadata, _ = normalize(
+        input_features,
+        handle_categorical=True,
+        categorical_method='label'
+    )
+    price_normalized, price_metadata, _ = normalize(
+        price,
+        handle_categorical=False
+    )
+    print("✓ Data normalized successfully!")
+except Exception as e:
+    print(f"✗ Error during normalization: {str(e)}")
+    print("Please ensure your dataset contains valid numeric values or categorical values that can be encoded.")
+    exit(1)
 
 #batching
 batch_size_input=int(input("enter the batch size"))
 epochs=int(input("Enter number of epochs"))
+
 
 
 
