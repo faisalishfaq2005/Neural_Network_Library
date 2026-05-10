@@ -270,15 +270,14 @@ if st.button("Start Training 🚀", key="train_regression"):
             if epoch_num == epochs - 1:
                 st.session_state.prediction_regression.append(predicted_output)
             
-            # Calculate loss and accuracy
+            # Calculate loss and MAE
             error = output_array - predicted_output
             loss = mse_loss(output_array, predicted_output)
             epoch_loss += loss
             batch_count += 1
             
-            # Calculate accuracy
-            threshold = 0.05
-            correct_predictions += np.sum(np.abs(output_array - predicted_output) <= threshold)
+            # Calculate Mean Absolute Error (MAE)
+            correct_predictions += np.sum(np.abs(output_array - predicted_output))
             total_predictions += output_array.size
             
             # Backward pass
@@ -287,12 +286,12 @@ if st.button("Start Training 🚀", key="train_regression"):
         
         # Calculate average loss for epoch
         avg_loss = epoch_loss / batch_count if batch_count > 0 else epoch_loss
-        accuracy = (correct_predictions / total_predictions * 100) if total_predictions > 0 else 0
+        mae = (correct_predictions / total_predictions) if total_predictions > 0 else 0
         
         # Store metrics
         epoch_metrics['epochs'].append(epoch_num + 1)
         epoch_metrics['losses'].append(avg_loss)
-        epoch_metrics['accuracies'].append(accuracy)
+        epoch_metrics['accuracies'].append(mae)
         
         # Calculate elapsed time
         epoch_time = time.time() - epoch_start
@@ -321,9 +320,10 @@ if st.button("Start Training 🚀", key="train_regression"):
             
             with accuracy_placeholder.container():
                 st.metric(
-                    "📈 Accuracy",
-                    f"{accuracy:.2f}%",
-                    delta=f"{accuracy:.2f}%" if epoch_num > 0 else None
+                    "� MAE (Mean Absolute Error)",
+                    f"{mae:.6f}",
+                    delta=f"{mae:.6f}" if epoch_num > 0 else None,
+                    delta_color="inverse"
                 )
             
             with time_placeholder.container():
@@ -362,7 +362,7 @@ if st.button("Start Training 🚀", key="train_regression"):
     summary_col1, summary_col2, summary_col3 = st.columns(3)
     
     with summary_col1:
-        st.metric("🏆 Final Accuracy", f"{accuracy:.2f}%")
+        st.metric("📏 Final MAE", f"{mae:.6f}")
     with summary_col2:
         st.metric("📉 Final Loss", f"{epoch_metrics['losses'][-1]:.6f}")
     with summary_col3:
@@ -381,19 +381,19 @@ if st.button("Start Training 🚀", key="train_regression"):
 
 
 st.markdown("### What Would You Like to Do Next?")
-action = st.selectbox("Choose Action:", ["Check Model Accuracy", "Make Predictions"])
+action = st.selectbox("Choose Action:", ["Check Model Performance", "Make Predictions"])
 
-if action == "Check Model Accuracy":
-    accuracy_percentage = 0
+if action == "Check Model Performance":
+    mae_value = 0
     if correct_predictions > 0 and total_predictions > 0:
-        accuracy_percentage = (correct_predictions / total_predictions) * 100
+        mae_value = (correct_predictions / total_predictions)
     
-    # Display accuracy with styled metric
+    # Display MAE with styled metric
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("🏆 Model Accuracy", f"{accuracy_percentage:.2f}%")
+        st.metric("📏 Mean Absolute Error", f"{mae_value:.6f}")
     with col2:
-        st.metric("✅ Correct Predictions", f"{correct_predictions}")
+        st.metric("📉 Total Error Sum", f"{correct_predictions:.6f}")
     with col3:
         st.metric("📊 Total Predictions", f"{total_predictions}")
     

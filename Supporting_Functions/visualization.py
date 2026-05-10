@@ -428,14 +428,14 @@ class TrainingAnimator:
     
     def create_real_time_metrics_plot(self, epochs_list: List[int], 
                                      loss_list: List[float],
-                                     accuracy_list: List[float]) -> go.Figure:
+                                     mae_list: List[float]) -> go.Figure:
         """
         Create real-time updating metrics plot
         
         Args:
             epochs_list: List of epoch numbers
             loss_list: List of loss values
-            accuracy_list: List of accuracy values
+            mae_list: List of Mean Absolute Error values
             
         Returns:
             Plotly figure with dual-axis plot
@@ -465,22 +465,22 @@ class TrainingAnimator:
             secondary_y=False
         )
         
-        # Add accuracy curve
+        # Add MAE curve
         fig.add_trace(
             go.Scatter(
                 x=epochs_list,
-                y=accuracy_list,
-                name='Accuracy',
+                y=mae_list,
+                name='Mean Absolute Error',
                 mode='lines+markers',
                 line=dict(
-                    color='#2ECC71',
+                    color='#3498DB',
                     width=3,
                     shape='spline'
                 ),
                 marker=dict(size=6),
                 fill='tozeroy',
-                fillcolor='rgba(46, 204, 113, 0.2)',
-                hovertemplate='<b>Epoch %{x}</b><br>Accuracy: %{y:.4f}<extra></extra>'
+                fillcolor='rgba(52, 152, 219, 0.2)',
+                hovertemplate='<b>Epoch %{x}</b><br>MAE: %{y:.6f}<extra></extra>'
             ),
             secondary_y=True
         )
@@ -501,9 +501,9 @@ class TrainingAnimator:
         )
         
         fig.update_yaxes(
-            title=dict(text='<b>Accuracy</b>', font=dict(size=14, color='#2ECC71')),
+            title=dict(text='<b>Mean Absolute Error (MAE)</b>', font=dict(size=14, color='#3498DB')),
             secondary_y=True,
-            tickfont=dict(size=12, color='#2ECC71')
+            tickfont=dict(size=12, color='#3498DB')
         )
         
         fig.update_layout(
@@ -689,20 +689,20 @@ def visualize_network_architecture(structure: List[Dict], input_size: int = None
 
 def create_training_metrics_display(epochs: List[int], 
                                    losses: List[float],
-                                   accuracies: List[float]) -> go.Figure:
+                                   mae_values: List[float]) -> go.Figure:
     """
     Create training metrics visualization
     
     Args:
         epochs: List of epoch numbers
         losses: List of loss values
-        accuracies: List of accuracy values
+        mae_values: List of Mean Absolute Error values
         
     Returns:
         Plotly figure with metrics
     """
     animator = TrainingAnimator(None, [], len(epochs))
-    return animator.create_real_time_metrics_plot(epochs, losses, accuracies)
+    return animator.create_real_time_metrics_plot(epochs, losses, mae_values)
 
 
 def create_training_animation_container(structure: List[Dict], total_epochs: int) -> TrainingAnimator:
