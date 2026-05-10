@@ -86,6 +86,10 @@ if "csv_columns_classification" not in st.session_state:
     st.session_state.csv_columns_classification = None
 if "original_data_classification" not in st.session_state:
     st.session_state.original_data_classification = None
+if "col_is_categorical_classification" not in st.session_state:
+    st.session_state.col_is_categorical_classification = {}
+if "col_categories_classification" not in st.session_state:
+    st.session_state.col_categories_classification = {}
 
 st.title("🧠 Neural Network Classification Trainer")
 st.markdown("### Build, Train, and Evaluate a Neural Network with Intuitive Controls")
@@ -106,10 +110,23 @@ if uploaded_file:
     output_features=data.iloc[:,-1].values.reshape(-1,1)
     
     # Store column names and original data for predictions
-    if "csv_columns_classification" not in st.session_state:
-        st.session_state.csv_columns_classification = list(data.columns[:-1])
-        st.session_state.original_data_classification = data
-        st.session_state.target_column_classification = data.columns[-1]
+    st.session_state.csv_columns_classification = list(data.columns[:-1])
+    st.session_state.original_data_classification = data
+    st.session_state.target_column_classification = data.columns[-1]
+
+    # Detect categorical vs numeric columns for prediction UI and encoding
+    col_is_categorical = {}
+    col_categories = {}
+    for col_name in data.columns[:-1]:
+        col_data = data[col_name]
+        numeric_check = pd.to_numeric(col_data, errors='coerce')
+        if numeric_check.isna().sum() / max(len(col_data), 1) > 0.3:
+            col_is_categorical[col_name] = True
+            col_categories[col_name] = np.unique(col_data.dropna().values).tolist()
+        else:
+            col_is_categorical[col_name] = False
+    st.session_state.col_is_categorical_classification = col_is_categorical
+    st.session_state.col_categories_classification = col_categories
     
     if input_features is not None:
         print(input_features.shape)
@@ -429,97 +446,80 @@ if st.session_state.model_trained_classification:
     elif action == "Make Predictions":
         st.markdown("### 🔮 Make New Predictions")
         st.info("Enter values for each input feature")
-        
+
         if st.session_state.csv_columns_classification and st.session_state.original_data_classification is not None:
-            # Create column-based input form
             prediction_inputs = {}
+            col_is_cat = st.session_state.col_is_categorical_classification
+            col_cats = st.session_state.col_categories_classification
             input_cols = st.columns(min(3, len(st.session_state.csv_columns_classification)))
-            
+
             for idx, col_name in enumerate(st.session_state.csv_columns_classification):
                 col_index = idx % len(input_cols)
-                
                 with input_cols[col_index]:
-                    # Check if this column was categorical in original data
-                    original_col_data = st.session_state.original_data_classification[col_name].values
-                    is_categorical = False
-                    
-                    try:
-                        # Try to convert to numeric - if it fails, it's categorical
-                        numeric_vals = pd.to_numeric(original_col_data, errors='coerce')
-                        # If more than 30% are NaN after conversion, treat as categorical
-                        if numeric_vals.isna().sum() / len(numeric_vals) > 0.3:
-                            is_categorical = True
-                    except:
-                        is_categorical = True
-                    
-                    if is_categorical:
-                        # Show dropdown for categorical
-                        unique_vals = list(st.session_state.original_data_classification[col_name].unique())
+                    if col_is_cat.get(col_name, False):
+                        unique_vals = col_cats.get(col_name, list(st.session_state.original_data_classification[col_name].unique()))
                         prediction_inputs[col_name] = st.selectbox(
                             f"📋 {col_name}",
                             unique_vals,
                             key=f"select_{col_name}_clf"
                         )
                     else:
-                        # Show number input for numeric
                         prediction_inputs[col_name] = st.number_input(
                             f"🔢 {col_name}",
                             value=0.0,
-                            step=0.1,
+                            step=0.01,
+                            format="%.4f",
                             key=f"input_{col_name}_clf"
                         )
-            
+
             if st.button("Predict 🎯", key="predict_classification"):
                 try:
-                    # Prepare input array from form values
-                    input_values = np.array([prediction_inputs[col] for col in st.session_state.csv_columns_classification]).reshape(1, -1)
-                    
-                    # Handle categorical encoding and normalization
-                    if hasattr(st.session_state, 'input_metadata'):
-                        # Make a copy to modify
-                        inputs_to_normalize = input_values.copy().astype(float)
-                        
-                        # Handle categorical encoding for each column
-                        for col_idx, col_name in enumerate(st.session_state.csv_columns_classification):
-                            if col_name in st.session_state.input_metadata.get('categorical_encoders', {}):
-                                encoder = st.session_state.input_metadata['categorical_encoders'][col_name]
-                                try:
-                                    # Encode the categorical value
-                                    encoded_val = encoder.transform(np.array([[input_values[0][col_idx]]]))[0][0]
-                                    inputs_to_normalize[0][col_idx] = encoded_val
-                                except Exception as e:
-                                    st.warning(f"Could not encode {col_name}: {str(e)}")
-                        
-                        # Normalize numeric features
-                        inputs_normalized = (inputs_to_normalize - st.session_state.input_metadata['min_values']) / (
-                            st.session_state.input_metadata['max_values'] - st.session_state.input_metadata['min_values'] + 1e-8
-                        )
-                    else:
-                        inputs_normalized = input_values
-                    
-                    # Get prediction from trained model
+                    input_metadata = getattr(st.session_state, 'input_metadata', None)
+
+                    # Build normalized input matching training encoding exactly
+                    input_normalized = np.zeros((1, len(st.session_state.csv_columns_classification)), dtype=float)
+                    numeric_col_counter = 0
+
+                    for col_idx, col_name in enumerate(st.session_state.csv_columns_classification):
+                        val = prediction_inputs[col_name]
+                        if col_is_cat.get(col_name, False):
+                            # Label-encode matching np.unique sort order used during training
+                            categories = [str(c) for c in col_cats.get(col_name, [])]
+                            val_str = str(val)
+                            encoded = categories.index(val_str) if val_str in categories else 0
+                            input_normalized[0][col_idx] = float(encoded)
+                        else:
+                            float_val = float(val)
+                            if (input_metadata is not None and
+                                    input_metadata.get('min_values') is not None and
+                                    numeric_col_counter < len(input_metadata['min_values'])):
+                                min_v = float(input_metadata['min_values'][numeric_col_counter])
+                                max_v = float(input_metadata['max_values'][numeric_col_counter])
+                                diff = (max_v - min_v) if (max_v - min_v) != 0 else 1.0
+                                input_normalized[0][col_idx] = (float_val - min_v) / diff
+                            else:
+                                input_normalized[0][col_idx] = float_val
+                            numeric_col_counter += 1
+
                     if st.session_state.nn_trained_classification is not None:
-                        prediction_probability = st.session_state.nn_trained_classification.forward_propogation(inputs_normalized)
-                        prediction_probability = prediction_probability.flatten()[0]
+                        prediction_probability = st.session_state.nn_trained_classification.forward_propogation(input_normalized)
+                        prediction_probability = float(prediction_probability.flatten()[0])
                         predicted_class = 1 if prediction_probability >= 0.5 else 0
-                        
+
                         st.success("✅ Prediction Successful!")
                         st.markdown("### 🎯 Prediction Result")
                         col1, col2 = st.columns([1, 2])
-                        
                         with col1:
                             st.markdown("### Predicted Class")
-                        
                         with col2:
-                            st.metric("🎯 Class", f"{predicted_class}", 
-                                     delta=f"Confidence: {prediction_probability:.2%}")
-                        
-                        # Show probability bar
+                            st.metric("🎯 Class", f"{predicted_class}",
+                                      delta=f"Confidence: {prediction_probability:.2%}")
+
                         st.markdown("#### Probability Distribution")
                         prob_col1, prob_col2 = st.columns(2)
                         with prob_col1:
-                            st.write(f"**Class 0**: {(1-prediction_probability):.2%}")
-                            st.progress(1-prediction_probability)
+                            st.write(f"**Class 0**: {(1 - prediction_probability):.2%}")
+                            st.progress(1 - prediction_probability)
                         with prob_col2:
                             st.write(f"**Class 1**: {prediction_probability:.2%}")
                             st.progress(prediction_probability)
