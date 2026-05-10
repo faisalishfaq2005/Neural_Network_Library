@@ -65,6 +65,20 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# ── Reset all state when navigating here from a different page ───────────────
+_REGRESSION_KEYS = [
+    'nn_structure_regression', 'nn_linklist_regression',
+    'trained_model_layers_regression', 'prediction_regression',
+    'nn_trained_regression', 'model_mae_regression',
+    'model_trained_regression', 'csv_columns', 'original_data',
+    'col_is_categorical_regression', 'col_categories_regression',
+    'input_metadata', 'output_metadata', 'target_column',
+]
+if st.session_state.get('active_page') != 'regression':
+    for _k in _REGRESSION_KEYS:
+        st.session_state.pop(_k, None)
+    st.session_state['active_page'] = 'regression'
+
 # Initialize session state variables at the very beginning
 if "nn_structure_regression" not in st.session_state:
     st.session_state.nn_structure_regression = []

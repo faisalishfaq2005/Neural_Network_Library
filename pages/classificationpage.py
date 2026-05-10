@@ -67,6 +67,21 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# ── Reset all state when navigating here from a different page ───────────────
+_CLASSIFICATION_KEYS = [
+    'nn_structure_classification', 'nn_linklist_classification',
+    'trained_model_layers_classification', 'final_loss_classification',
+    'nn_trained_classification', 'model_accuracy_classification',
+    'model_trained_classification', 'csv_columns_classification',
+    'original_data_classification', 'col_is_categorical_classification',
+    'col_categories_classification', 'input_metadata',
+    'output_features_original', 'target_column_classification',
+]
+if st.session_state.get('active_page') != 'classification':
+    for _k in _CLASSIFICATION_KEYS:
+        st.session_state.pop(_k, None)
+    st.session_state['active_page'] = 'classification'
+
 # Initialize session state variables at the very beginning
 if "nn_structure_classification" not in st.session_state:
     st.session_state.nn_structure_classification = []
@@ -166,10 +181,6 @@ print("Input Features Normalized Shape:", input_features_normalized.shape if inp
 
 
 
-
-
-if "nn_structure" not in st.session_state:
-    st.session_state.nn_structure_classification = []
 
 
 st.title("Neural Network Builder")
