@@ -5,8 +5,10 @@ from NLP.analyze_context import analyze_context
 from NLP.extract_keywords import extract_keywords
 from NLP.cluster_words import cluster_words
 
-import streamlit as st
 import pandas as pd
+
+# Mark active page so regression/classification know to reset on next visit
+st.session_state['active_page'] = 'nlp'
 
 st.markdown("""
     <style>

@@ -115,8 +115,19 @@ nn=LinkList()
 nn_trained=LinkList()
 
 
+def _reset_regression_layers():
+    """Called by the file uploader on_change — wipes layer/model state for a clean start."""
+    for _k in ['nn_structure_regression', 'nn_linklist_regression',
+               'trained_model_layers_regression', 'prediction_regression',
+               'nn_trained_regression', 'model_mae_regression', 'model_trained_regression',
+               'csv_columns', 'original_data', 'col_is_categorical_regression',
+               'col_categories_regression', 'input_metadata', 'output_metadata', 'target_column']:
+        st.session_state.pop(_k, None)
+
 st.markdown("#### Step 1: Upload Your Dataset")
-uploaded_file = st.file_uploader("Upload your CSV file", type=["csv"])
+uploaded_file = st.file_uploader("Upload your CSV file", type=["csv"],
+                                  key="reg_file_uploader",
+                                  on_change=_reset_regression_layers)
 if uploaded_file:
     data = pd.read_csv(uploaded_file)
     input_features=data.iloc[:,:-1].values

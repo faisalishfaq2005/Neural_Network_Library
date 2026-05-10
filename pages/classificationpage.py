@@ -117,13 +117,25 @@ input_features_normalized=None
 nn=LinkList()
 nn_trained=LinkList()
 
+def _reset_classification_layers():
+    """Called by the file uploader on_change — wipes layer/model state for a clean start."""
+    for _k in ['nn_structure_classification', 'nn_linklist_classification',
+               'trained_model_layers_classification', 'final_loss_classification',
+               'nn_trained_classification', 'model_accuracy_classification', 'model_trained_classification',
+               'csv_columns_classification', 'original_data_classification',
+               'col_is_categorical_classification', 'col_categories_classification',
+               'input_metadata', 'output_features_original', 'target_column_classification']:
+        st.session_state.pop(_k, None)
+
 st.markdown("#### Step 1: Upload Your Dataset")
-uploaded_file = st.file_uploader("Upload your CSV file", type=["csv"])
+uploaded_file = st.file_uploader("Upload your CSV file", type=["csv"],
+                                  key="clf_file_uploader",
+                                  on_change=_reset_classification_layers)
 if uploaded_file:
     data = pd.read_csv(uploaded_file)
     input_features=data.iloc[:,:-1].values
     output_features=data.iloc[:,-1].values.reshape(-1,1)
-    
+
     # Store column names and original data for predictions
     st.session_state.csv_columns_classification = list(data.columns[:-1])
     st.session_state.original_data_classification = data

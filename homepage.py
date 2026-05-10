@@ -55,6 +55,8 @@ st.markdown("""
     max-width: 660px;
     margin: 0 auto 40px;
     line-height: 1.7;
+    text-align: center !important;
+    display: block;
 }
 .hero-stats {
     display: flex;
@@ -231,6 +233,20 @@ st.markdown("""
   </div>
 </div>
 """, unsafe_allow_html=True)
+
+# ── NAVIGATION (shown immediately after hero) ─────────────────────────────────
+c1, c2, c3 = st.columns(3, gap="small")
+with c1:
+    if st.button("📈  Regression\nPredict continuous numeric values", key="nav_reg"):
+        st.switch_page("pages/regressionpage.py")
+with c2:
+    if st.button("🎯  Classification\nBinary class prediction with confidence", key="nav_clf"):
+        st.switch_page("pages/classificationpage.py")
+with c3:
+    if st.button("💬  NLP Tasks\nContext analysis, keywords & clustering", key="nav_nlp"):
+        st.switch_page("pages/nlpPage.py")
+
+st.markdown('<div class="div"></div>', unsafe_allow_html=True)
 
 # ── OVERVIEW ──────────────────────────────────────────────────────────────────
 st.markdown("""
@@ -609,30 +625,6 @@ st.markdown("""
   </div>
 </div>
 """, unsafe_allow_html=True)
-
-st.markdown('<div class="div"></div>', unsafe_allow_html=True)
-
-# ── NAVIGATION ─────────────────────────────────────────────────────────────────
-st.markdown("""
-<div class="sh">
-  <div class="sh-accent" style="background:linear-gradient(180deg,#D97BFF,#00D9FF)"></div>
-  <div>
-    <p class="sh-title">Launch a Module</p>
-    <p class="sh-desc">Each module starts fresh — upload your dataset and build your network from scratch</p>
-  </div>
-</div>
-""", unsafe_allow_html=True)
-
-c1, c2, c3 = st.columns(3, gap="small")
-with c1:
-    if st.button("📈  Regression\nPredict continuous numeric values", key="nav_reg"):
-        st.switch_page("pages/regressionpage.py")
-with c2:
-    if st.button("🎯  Classification\nBinary class prediction with confidence", key="nav_clf"):
-        st.switch_page("pages/classificationpage.py")
-with c3:
-    if st.button("💬  NLP Tasks\nContext analysis, keywords & clustering", key="nav_nlp"):
-        st.switch_page("pages/nlpPage.py")
 
 # ── FOOTER ─────────────────────────────────────────────────────────────────────
 st.markdown("""
