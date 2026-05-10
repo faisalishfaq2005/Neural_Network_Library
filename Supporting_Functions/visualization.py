@@ -50,10 +50,10 @@ class NetworkVisualizer:
         """
         fig = go.Figure()
         
-        # Calculate positions
-        layer_spacing = 150
+        # Calculate positions with better spacing
+        layer_spacing = 180
         max_neurons = max(d.get('neurons', 3) for d in self.structure) if self.structure else 3
-        neuron_spacing = 60 / (max_neurons / 3)
+        neuron_spacing = max(50, 80 / (max_neurons / 2))
         
         positions = []
         node_traces = []
@@ -64,19 +64,19 @@ class NetworkVisualizer:
         
         # Add input layer
         if self.input_size:
-            all_layers.append({'type': 'Input', 'neurons': self.input_size, 'index': -1})
+            all_layers.append({'type': 'Input', 'neurons': self.input_size, 'index': -1, 'activation': None})
         
         for idx, layer in enumerate(self.structure):
             layer['index'] = idx
             all_layers.append(layer)
         
-        # Draw layers
+        # Draw layers with improved styling
         for layer_idx, layer in enumerate(all_layers):
             x = layer_idx * layer_spacing
             neurons_count = layer.get('neurons', 3)
             
-            # Limit display of neurons for clarity
-            display_neurons = min(neurons_count, 8)
+            # Limit display of neurons for clarity (max 12 for better visualization)
+            display_neurons = min(neurons_count, 12)
             
             y_positions = np.linspace(
                 -display_neurons * neuron_spacing / 2,
@@ -85,25 +85,30 @@ class NetworkVisualizer:
             )
             positions.append([(x, y) for y in y_positions])
             
-            # Determine node color
+            # Determine node color and label
             if layer['type'] == 'Input' or layer['type'] == 'input':
                 color = self.colors['input']
-                name = f"Input\n({neurons_count})"
+                layer_label = 'Input Layer'
+                icon = '🔵'
             elif layer['type'] == 'Activation':
                 color = self.colors['activation']
-                name = f"{layer.get('activation', 'Activation')}"
+                activation_type = layer.get('activation', 'Activation')
+                layer_label = f'{activation_type}'
+                icon = '🟠'
             elif layer['type'] == 'Dense':
                 color = self.colors['dense']
-                name = f"Dense\n({neurons_count})"
+                layer_label = 'Dense Layer'
+                icon = '🔴'
             else:
                 color = self.colors['output']
-                name = layer.get('type', 'Layer')
+                layer_label = 'Output'
+                icon = '🟢'
             
-            # Add nodes with glow effect
+            # Add nodes with improved styling
             x_coords = [x] * len(y_positions)
             y_coords = y_positions
             
-            # Draw connection edges first (behind nodes)
+            # Draw connection edges first (behind nodes) with gradient effect
             if layer_idx < len(all_layers) - 1:
                 current_layer = positions[-1]
                 next_layer = positions[layer_idx + 1] if layer_idx + 1 < len(positions) else []
@@ -116,45 +121,72 @@ class NetworkVisualizer:
                                     x=[x1, x2], y=[y1, y2],
                                     mode='lines',
                                     line=dict(
-                                        color=self.colors['connection'],
-                                        width=1.5,
+                                        color='rgba(52, 73, 94, 0.3)',
+                                        width=2,
                                         dash='solid'
                                     ),
                                     hoverinfo='none',
                                     showlegend=False,
-                                    opacity=0.4
+                                    opacity=0.5
                                 )
                             )
             
-            # Add neuron nodes
+            # Enhanced neuron node rendering
+            hover_text = []
+            for i in range(len(y_positions)):
+                if layer['type'].lower() == 'input':
+                    text = f"<b>Feature {i+1}</b><br>Input Node"
+                elif layer['type'].lower() == 'activation':
+                    text = f"<b>Neuron {i+1}</b><br>Type: {layer.get('activation', 'Activation')}"
+                elif layer['type'].lower() == 'dense':
+                    text = f"<b>Neuron {i+1}</b><br>Dense Layer"
+                else:
+                    text = f"<b>Output {i+1}</b><br>Output Layer"
+                hover_text.append(text)
+            
             node_traces.append(
                 go.Scatter(
                     x=x_coords,
                     y=y_coords,
-                    mode='markers+text',
+                    mode='markers',
                     marker=dict(
-                        size=25,
+                        size=30,
                         color=color,
                         line=dict(
-                            color='white',
-                            width=2.5
+                            color='rgba(255, 255, 255, 0.8)',
+                            width=3
                         ),
-                        opacity=0.9,
-                        symbol='circle'
+                        opacity=0.95,
+                        symbol='circle',
+                        sizemode='diameter'
                     ),
-                    text=[name] * len(y_positions),
-                    textposition='top center' if layer_idx % 2 == 0 else 'bottom center',
-                    textfont=dict(
-                        size=9,
-                        color='white',
-                        family='Arial Black'
-                    ),
-                    name=f"Layer {layer_idx}",
-                    hovertext=[f"Neurons: {neurons_count}<br>Type: {layer['type']}" for _ in y_positions],
+                    text=hover_text,
+                    hovertext=hover_text,
                     hoverinfo='text',
+                    name=layer_label,
                     showlegend=True,
-                    customdata=[[layer['type'], neurons_count]] * len(y_positions)
+                    legendgroup=f"layer_{layer_idx}",
+                    customdata=[[layer['type'], neurons_count, layer.get('activation', 'N/A')]] * len(y_positions)
                 )
+            )
+            
+            # Add layer label above/below with better positioning
+            label_y = max(y_positions) + neuron_spacing * 0.8 if layer_idx % 2 == 0 else min(y_positions) - neuron_spacing * 0.8
+            fig.add_annotation(
+                x=x,
+                y=label_y,
+                text=f"<b>{layer_label}</b><br><i>({neurons_count} {'neurons' if neurons_count > 1 else 'neuron'})</i>",
+                showarrow=False,
+                font=dict(
+                    size=11,
+                    color='#2C3E50',
+                    family='Arial Black'
+                ),
+                bgcolor='rgba(236, 240, 241, 0.7)',
+                bordercolor='#95A5A6',
+                borderwidth=1,
+                borderpad=8,
+                align='center'
             )
         
         # Add edges first (background)
@@ -165,17 +197,29 @@ class NetworkVisualizer:
         for node_trace in node_traces:
             fig.add_trace(node_trace)
         
-        # Update layout with professional styling
+        # Update layout with enhanced professional styling
         fig.update_layout(
             title=dict(
-                text="<b>Neural Network Architecture</b>",
-                font=dict(size=24, color='#2C3E50'),
+                text="<b>🧠 Neural Network Architecture</b>",
+                font=dict(size=26, color='#2C3E50', family='Arial Black'),
                 x=0.5,
-                xanchor='center'
+                xanchor='center',
+                y=0.98,
+                yanchor='top'
             ),
             showlegend=True,
+            legend=dict(
+                x=1.02,
+                y=1,
+                xanchor='left',
+                yanchor='top',
+                bgcolor='rgba(255, 255, 255, 0.8)',
+                bordercolor='#95A5A6',
+                borderwidth=1,
+                font=dict(size=11, color='#2C3E50')
+            ),
             hovermode='closest',
-            margin=dict(b=20, l=5, r=5, t=50),
+            margin=dict(b=40, l=40, r=200, t=80),
             xaxis=dict(
                 showgrid=False,
                 zeroline=False,
@@ -188,15 +232,16 @@ class NetworkVisualizer:
                 showticklabels=False,
                 visible=False
             ),
-            plot_bgcolor='white',
+            plot_bgcolor='rgba(236, 240, 241, 0.5)',
             paper_bgcolor='white',
-            height=600,
-            width=1200,
-            font=dict(family='Arial', size=11),
+            height=700,
+            width=1300,
+            font=dict(family='Arial', size=12),
             hoverlabel=dict(
-                bgcolor='white',
-                font_size=13,
-                font_family='Arial'
+                bgcolor='#2C3E50',
+                font_size=12,
+                font_family='Arial',
+                font_color='white'
             )
         )
         
@@ -450,17 +495,15 @@ class TrainingAnimator:
         )
         
         fig.update_yaxes(
-            title_text='<b>Loss</b>',
+            title=dict(text='<b>Loss</b>', font=dict(size=14, color='#FF6B9D')),
             secondary_y=False,
-            titlefont=dict(color='#FF6B9D'),
-            tickfont=dict(color='#FF6B9D')
+            tickfont=dict(size=12, color='#FF6B9D')
         )
         
         fig.update_yaxes(
-            title_text='<b>Accuracy</b>',
+            title=dict(text='<b>Accuracy</b>', font=dict(size=14, color='#2ECC71')),
             secondary_y=True,
-            titlefont=dict(color='#2ECC71'),
-            tickfont=dict(color='#2ECC71')
+            tickfont=dict(size=12, color='#2ECC71')
         )
         
         fig.update_layout(
